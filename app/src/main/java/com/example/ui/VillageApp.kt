@@ -103,6 +103,7 @@ import com.example.utils.createTempVideoUri
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VillageApp(viewModel: ReportViewModel, chatViewModel: ChatViewModel, user: User?, onLogout: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val reports by viewModel.uiState.collectAsStateWithLifecycle()
     val followedUserIds by viewModel.followedUserIds.collectAsStateWithLifecycle()
     var showAddForm by remember { mutableStateOf(false) }
@@ -339,6 +340,23 @@ fun VillageApp(viewModel: ReportViewModel, chatViewModel: ChatViewModel, user: U
                                 androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
                                 var isInstagramLinked by remember { mutableStateOf(false) }
                                 Switch(checked = isInstagramLinked, onCheckedChange = { isInstagramLinked = it })
+                            }
+                            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
+                            androidx.compose.foundation.layout.Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    val sendIntent = android.content.Intent().apply {
+                                        action = android.content.Intent.ACTION_SEND
+                                        putExtra(android.content.Intent.EXTRA_TEXT, "Join me on Village app!")
+                                        type = "text/plain"
+                                    }
+                                    val shareIntent = android.content.Intent.createChooser(sendIntent, null)
+                                    context.startActivity(shareIntent)
+                                }
+                            ) {
+                                Text("Invite Friends")
+                                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                                Icon(imageVector = Icons.Default.Share, contentDescription = "Invite Friends")
                             }
                         }
                     },
