@@ -104,6 +104,7 @@ import com.example.utils.createTempVideoUri
 @Composable
 fun VillageApp(viewModel: ReportViewModel, chatViewModel: ChatViewModel, user: User?, onLogout: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val covertPrefs = remember { com.example.ui.covert.CovertPrefs(context) }
     val reports by viewModel.uiState.collectAsStateWithLifecycle()
     val followedUserIds by viewModel.followedUserIds.collectAsStateWithLifecycle()
     var showAddForm by remember { mutableStateOf(false) }
@@ -309,54 +310,215 @@ fun VillageApp(viewModel: ReportViewModel, chatViewModel: ChatViewModel, user: U
             }
 
             if (showSettings) {
+                var isCovertEnabled by remember { mutableStateOf(covertPrefs.isCovertEnabled) }
+                var disguiseType by remember { mutableStateOf(covertPrefs.disguiseType) }
+                var covertCode by remember { mutableStateOf(covertPrefs.covertCode) }
+
                 AlertDialog(
                     onDismissRequest = { showSettings = false },
-                    title = { Text("Settings") },
+                    title = { Text("Settings", fontWeight = FontWeight.Bold) },
                     text = {
-                        androidx.compose.foundation.layout.Column {
-                            androidx.compose.foundation.layout.Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Notifications")
-                                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-                                Switch(checked = true, onCheckedChange = {})
-                            }
-                            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
-                            androidx.compose.foundation.layout.Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Location Services")
-                                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-                                Switch(checked = true, onCheckedChange = {})
-                            }
-                            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
-                            androidx.compose.foundation.layout.Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Link Instagram Account")
-                                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-                                var isInstagramLinked by remember { mutableStateOf(false) }
-                                Switch(checked = isInstagramLinked, onCheckedChange = { isInstagramLinked = it })
-                            }
-                            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
-                            androidx.compose.foundation.layout.Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth().clickable {
-                                    val sendIntent = android.content.Intent().apply {
-                                        action = android.content.Intent.ACTION_SEND
-                                        putExtra(android.content.Intent.EXTRA_TEXT, "Join me on Village app!")
-                                        type = "text/plain"
-                                    }
-                                    val shareIntent = android.content.Intent.createChooser(sendIntent, null)
-                                    context.startActivity(shareIntent)
+                        androidx.compose.foundation.lazy.LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            item {
+                                Text(
+                                    text = "General Preferences",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Notifications")
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Switch(checked = true, onCheckedChange = {})
                                 }
-                            ) {
-                                Text("Invite Friends")
-                                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-                                Icon(imageVector = Icons.Default.Share, contentDescription = "Invite Friends")
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Location Services")
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Switch(checked = true, onCheckedChange = {})
+                                }
+                            }
+
+                            item {
+                                androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
+                            }
+
+                            item {
+                                Text(
+                                    text = "Social Integrations",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Link Instagram Account")
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    var isInstagramLinked by remember { mutableStateOf(false) }
+                                    Switch(checked = isInstagramLinked, onCheckedChange = { isInstagramLinked = it })
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        val sendIntent = android.content.Intent().apply {
+                                            action = android.content.Intent.ACTION_SEND
+                                            putExtra(android.content.Intent.EXTRA_TEXT, "Join me on Village app!")
+                                            type = "text/plain"
+                                        }
+                                        val shareIntent = android.content.Intent.createChooser(sendIntent, null)
+                                        context.startActivity(shareIntent)
+                                    }
+                                ) {
+                                    Text("Invite Friends")
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Icon(imageVector = Icons.Default.Share, contentDescription = "Invite Friends", modifier = Modifier.size(20.dp))
+                                }
+                            }
+
+                            item {
+                                androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
+                            }
+
+                            item {
+                                Text(
+                                    text = "Device Security & Disguises",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Mask this application behind a harmless cover utility (like a Calculator, Weather screen, or Notepad memo pad) to disguise community alerts on your local device.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Activate Covert Disguise")
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Switch(
+                                        checked = isCovertEnabled,
+                                        onCheckedChange = { checked ->
+                                            isCovertEnabled = checked
+                                            covertPrefs.isCovertEnabled = checked
+                                        }
+                                    )
+                                }
+
+                                if (isCovertEnabled) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        text = "Select Cover Style",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        listOf("calculator", "weather", "notes").forEach { itemType ->
+                                            val isSelected = disguiseType == itemType
+                                            OutlinedButton(
+                                                onClick = {
+                                                    disguiseType = itemType
+                                                    covertPrefs.disguiseType = itemType
+                                                },
+                                                modifier = Modifier.weight(1f),
+                                                colors = if (isSelected) {
+                                                    ButtonDefaults.outlinedButtonColors(
+                                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                                    )
+                                                } else {
+                                                    ButtonDefaults.outlinedButtonColors()
+                                                },
+                                                contentPadding = PaddingValues(0.dp)
+                                            ) {
+                                                Text(
+                                                    text = itemType.replaceFirstChar { it.uppercase() },
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    if (disguiseType == "calculator") {
+                                        OutlinedTextField(
+                                            value = covertCode,
+                                            onValueChange = {
+                                                covertCode = it
+                                                covertPrefs.covertCode = it
+                                            },
+                                            label = { Text("Secret Calculator Passcode") },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            singleLine = true
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "On launch, the apps opens to a functional calculator. Enter this PIN and press '=' to reveal your Village app.",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        )
+                                    } else if (disguiseType == "weather") {
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                                        ) {
+                                            Column(modifier = Modifier.padding(12.dp)) {
+                                                Text(
+                                                    text = "Secret Weather Tap Sequence",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "Triggers a full weather cover app on launch. Tap the central main sun icon 5 times in quick succession to bypass and enter Village.",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                                        ) {
+                                            Column(modifier = Modifier.padding(12.dp)) {
+                                                Text(
+                                                    text = "Secret Notepad Tap Sequence",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "Provides a working temporary text memo board on launch. Tap the top 'Personal Notebook' header 5 times to reveal Village.",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     },
