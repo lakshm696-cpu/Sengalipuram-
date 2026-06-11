@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val reportRepository by lazy {
-        ReportRepository(database.reportDao())
+        ReportRepository(database.reportDao(), database.progressUpdateDao())
     }
 
     private val userRepository by lazy {

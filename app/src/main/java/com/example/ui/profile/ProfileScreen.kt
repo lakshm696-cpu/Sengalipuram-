@@ -24,13 +24,15 @@ import androidx.compose.foundation.shape.CircleShape
 import com.example.data.Report
 import com.example.data.User
 import com.example.ui.ReportCard
+import com.example.ui.ReportViewModel
 
 @Composable
 fun ProfileScreen(
     user: User?,
     reports: List<Report>,
     onLogout: () -> Unit,
-    onDeleteReport: (Int) -> Unit
+    onDeleteReport: (Int) -> Unit,
+    viewModel: ReportViewModel? = null
 ) {
     if (user == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -163,7 +165,9 @@ fun ProfileScreen(
                         currentUserId = user.id,
                         isFollowed = false, // Not applicable for own reports really
                         onToggleFollow = { },
-                        onDelete = { onDeleteReport(report.id) }
+                        onDelete = { onDeleteReport(report.id) },
+                        currentUser = user,
+                        viewModel = viewModel
                     )
                 }
             }

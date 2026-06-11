@@ -81,6 +81,12 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.data.Report
 import com.example.data.User
+import com.example.data.ProgressUpdate
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.TrendingUp
 
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Map
@@ -268,7 +274,9 @@ fun VillageApp(viewModel: ReportViewModel, chatViewModel: ChatViewModel, user: U
                                     currentUserId = user?.id,
                                     isFollowed = followedUserIds.contains(report.userId),
                                     onToggleFollow = { viewModel.toggleFollow(report.userId) },
-                                    onDelete = { viewModel.deleteReport(report.id) }
+                                    onDelete = { viewModel.deleteReport(report.id) },
+                                    currentUser = user,
+                                    viewModel = viewModel
                                 )
                             }
                         }
@@ -564,11 +572,44 @@ fun ReportCard(
     currentUserId: Int?,
     isFollowed: Boolean,
     onToggleFollow: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    currentUser: User? = null,
+    viewModel: ReportViewModel? = null
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var isLiked by remember { mutableStateOf(false) } // Mock like state
+    var showUpdates by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    // Media capturing states for progress updates
+    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraVideoUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedMediaUri by remember { mutableStateOf<Uri?>(null) }
+    var isVideo by remember { mutableStateOf(false) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && cameraImageUri != null) {
+            selectedMediaUri = cameraImageUri
+            isVideo = false
+        }
+    }
+
+    val videoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CaptureVideo()
+    ) { success ->
+        if (success && cameraVideoUri != null) {
+            selectedMediaUri = cameraVideoUri
+            isVideo = true
+        }
+    }
+
+    val updates by if (viewModel != null) {
+        viewModel.getUpdatesForReport(report.id).collectAsStateWithLifecycle(initialValue = emptyList())
+    } else {
+        remember { mutableStateOf<List<ProgressUpdate>>(emptyList()) }
+    }
 
     androidx.compose.foundation.layout.Column(
         modifier = Modifier
@@ -587,7 +628,7 @@ fun ReportCard(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .clip(CircleShape)
                     .background(Color.Gray.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -709,7 +750,7 @@ fun ReportCard(
                  contentAlignment = Alignment.Center
              ) {
                  Text("No Media", color = MaterialTheme.colorScheme.onSurfaceVariant)
-             }
+              }
         }
 
         // Actions Bar
@@ -721,12 +762,12 @@ fun ReportCard(
         ) {
             IconButton(onClick = { isLiked = !isLiked }) {
                 Icon(
-                    imageVector = Icons.Default.FavoriteBorder, // using outline heart
+                    imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = "Like",
                     tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurface
                 )
             }
-            IconButton(onClick = { /* TODO comments */ }) {
+            IconButton(onClick = { showUpdates = !showUpdates }) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Chat, 
                     contentDescription = "Comment"
@@ -789,12 +830,347 @@ fun ReportCard(
                 )
             }
             
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "View all comments",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            )
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Updates toggle indicator
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showUpdates = !showUpdates }
+                    .padding(vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.TrendingUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "${updates.size} Project Progress Updates",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(
+                    imageVector = if (showUpdates) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (showUpdates) "Collapse" else "Expand",
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Collapsible Progress Updates list & capture view
+        if (showUpdates) {
+            // Add update section for logged in users
+            if (currentUser != null && viewModel != null) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "Add Progress Update",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        var updateText by remember { mutableStateOf("") }
+                        OutlinedTextField(
+                            value = updateText,
+                            onValueChange = { updateText = it },
+                            placeholder = { Text("Write about the progress...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 2,
+                            maxLines = 4,
+                            textStyle = MaterialTheme.typography.bodyMedium
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    val uri = com.example.utils.createTempImageUri(context)
+                                    cameraImageUri = uri
+                                    cameraLauncher.launch(uri)
+                                },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CameraAlt,
+                                    contentDescription = "Capture Photo",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Photo Camera", style = MaterialTheme.typography.labelSmall)
+                            }
+                            
+                            OutlinedButton(
+                                onClick = {
+                                    val uri = com.example.utils.createTempVideoUri(context)
+                                    cameraVideoUri = uri
+                                    videoLauncher.launch(uri)
+                                },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Videocam,
+                                    contentDescription = "Record Video",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Video Camera", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                        
+                        selectedMediaUri?.let { uri ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(140.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                            ) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(uri)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Captured Media",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                
+                                if (isVideo) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.3f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Videocam,
+                                            contentDescription = "Video clip",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(36.dp)
+                                        )
+                                    }
+                                }
+                                
+                                IconButton(
+                                    onClick = {
+                                        selectedMediaUri = null
+                                        isVideo = false
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                                        .size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Remove media",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        Button(
+                            onClick = {
+                                if (updateText.isNotBlank() || selectedMediaUri != null) {
+                                    viewModel.addProgressUpdate(
+                                        reportId = report.id,
+                                        username = currentUser.username,
+                                        text = updateText,
+                                        mediaUri = selectedMediaUri?.toString(),
+                                        isVideo = isVideo
+                                    )
+                                    updateText = ""
+                                    selectedMediaUri = null
+                                    isVideo = false
+                                }
+                            },
+                            modifier = Modifier.align(Alignment.End),
+                            enabled = updateText.isNotBlank() || selectedMediaUri != null
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Post Progress update",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Post Update")
+                        }
+                    }
+                }
+            }
+
+            if (updates.isEmpty()) {
+                Text(
+                    text = "No progress updates recorded for this project yet. Capture and share the current status!",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 24.dp),
+                    textAlign = TextAlign.Center
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    updates.forEach { update ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Person,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = update.username,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                    
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        val timeString = remember(update.timestamp) {
+                                            val diff = System.currentTimeMillis() - update.timestamp
+                                            val mins = diff / 60000
+                                            val hours = mins / 60
+                                            when {
+                                                mins < 1 -> "Just now"
+                                                mins < 60 -> "$mins m ago"
+                                                hours < 24 -> "$hours h ago"
+                                                else -> java.text.DateFormat.getDateInstance(java.text.DateFormat.SHORT).format(java.util.Date(update.timestamp))
+                                            }
+                                        }
+                                        Text(
+                                            text = timeString,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        )
+                                        
+                                        if (currentUser != null && (currentUser.username == update.username || currentUser.id == report.userId)) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            IconButton(
+                                                onClick = { viewModel?.deleteProgressUpdate(update.id) },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = "Delete updates",
+                                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                if (update.text.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = update.text,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                
+                                update.mediaUri?.let { mediaUriStr ->
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(180.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color.Black)
+                                    ) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(LocalContext.current)
+                                                .data(Uri.parse(mediaUriStr))
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = "Progress update attachment",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        
+                                        if (update.isVideo) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .background(Color.Black.copy(alpha = 0.3f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Videocam,
+                                                    contentDescription = "Video attachment",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(48.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(12.dp))
         }
     }

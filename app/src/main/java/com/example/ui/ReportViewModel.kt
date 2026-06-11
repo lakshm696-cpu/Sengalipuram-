@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.data.Report
+import com.example.data.ProgressUpdate
 import com.example.data.ReportRepository
 import com.example.data.UserRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -69,6 +70,24 @@ class ReportViewModel(
     fun deleteReport(id: Int) {
         viewModelScope.launch {
             reportRepository.deleteById(id)
+        }
+    }
+
+    fun getUpdatesForReport(reportId: Int): kotlinx.coroutines.flow.Flow<List<ProgressUpdate>> {
+        return reportRepository.getUpdatesForReport(reportId)
+    }
+
+    fun addProgressUpdate(reportId: Int, username: String, text: String, mediaUri: String?, isVideo: Boolean) {
+        viewModelScope.launch {
+            reportRepository.insertUpdate(
+                ProgressUpdate(reportId = reportId, username = username, text = text, mediaUri = mediaUri, isVideo = isVideo)
+            )
+        }
+    }
+
+    fun deleteProgressUpdate(id: Int) {
+        viewModelScope.launch {
+            reportRepository.deleteUpdateById(id)
         }
     }
 }
