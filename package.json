@@ -1,0 +1,19 @@
+{
+  "name": "village-voice-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@google/genai": "latest",
+    "@netlify/database": "latest",
+    "@netlify/functions": "latest",
+    "drizzle-orm": "beta"
+  },
+  "devDependencies": {
+    "drizzle-kit": "beta",
+    "typescript": "latest"
+  }
+}
